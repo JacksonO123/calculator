@@ -19,10 +19,9 @@ fn main() -> io::Result<()> {
     println!("{}", input);
 
     let tokens = tokenize(input);
-    println!("{:?}", tokens);
 
     let equation = parse(tokens);
-    println!("{:?}", equation);
+    println!("{:#?}", equation);
 
     Ok(())
 }

@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+
 use crate::expression::{ExpressionToken, Operator};
 
 pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     let mut tokens: Vec<ExpressionToken> = vec![];
     let mut num_stack: Vec<char> = vec![];
+    let taken_vars: HashSet<char> = HashSet::new();
 
     for c in input.chars() {
         if c.is_whitespace() {
@@ -11,7 +14,7 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
 
         if is_number_related(c) {
             num_stack.push(c);
-        } else {
+        } else if matches!(c, '(' | ')' | '+' | '-' | '*' | '/' | '^') {
             if !num_stack.is_empty() {
                 let num = stack_to_number(&num_stack);
                 tokens.push(ExpressionToken::Number(num));
@@ -25,10 +28,15 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
                 '-' => ExpressionToken::Operator(Operator::Sub),
                 '*' => ExpressionToken::Operator(Operator::Mul),
                 '/' => ExpressionToken::Operator(Operator::Div),
-                _ => panic!("Unexpected token {}", c),
+                '^' => ExpressionToken::Operator(Operator::Exp),
+                _ => unreachable!(),
             };
 
             tokens.push(token);
+        } else {
+            if !taken_vars.contains(&c) {
+                tokens.push(ExpressionToken::Variable(c))
+            }
         }
     }
 
