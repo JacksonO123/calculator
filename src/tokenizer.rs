@@ -21,10 +21,9 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     taken_fns.insert("arcsec", FunctionName::ArcSec);
     taken_fns.insert("arccsc", FunctionName::ArcCsc);
     taken_fns.insert("arccot", FunctionName::ArcCot);
-    taken_fns.insert("Ln", FunctionName::Ln);
-    taken_fns.insert("Log", FunctionName::Log);
-    taken_fns.insert("Abs", FunctionName::Abs);
-    taken_fns.insert("Floor", FunctionName::Floor);
+    taken_fns.insert("ln", FunctionName::Ln);
+    taken_fns.insert("log", FunctionName::Log);
+    taken_fns.insert("abs", FunctionName::Abs);
 
     for c in input.chars() {
         if c.is_whitespace() {

@@ -26,14 +26,14 @@ pub enum FunctionName {
     Ln,
     Log,
     Abs,
-    Floor,
 }
 
 impl FnDerivable for FunctionName {
     fn derive(&mut self, mut inner: Expression) -> Expression {
+        let dx_inner = inner.derive().simplify();
+
         match self {
             FunctionName::Cos => {
-                let dx_inner = inner.derive().simplify();
                 let res = Expression::Mul(
                     Box::new(Expression::Mul(
                         Box::new(Expression::Number(-1.0)),
@@ -45,7 +45,6 @@ impl FnDerivable for FunctionName {
                 res.simplify()
             }
             FunctionName::Sin => {
-                let dx_inner = inner.derive().simplify();
                 let res = Expression::Mul(
                     Box::new(dx_inner),
                     Box::new(Expression::Function(FunctionName::Cos, Box::new(inner))),
@@ -53,7 +52,221 @@ impl FnDerivable for FunctionName {
 
                 res.simplify()
             }
-            _ => unimplemented!(),
+            FunctionName::Tan => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Exp(
+                        Box::new(Expression::Function(FunctionName::Sec, Box::new(inner))),
+                        Box::new(Expression::Number(2.0)),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Sec => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Mul(
+                        Box::new(Expression::Function(
+                            FunctionName::Sec,
+                            Box::new(inner.clone()),
+                        )),
+                        Box::new(Expression::Function(FunctionName::Tan, Box::new(inner))),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Csc => {
+                let res = Expression::Mul(
+                    Box::new(Expression::Number(-1.0)),
+                    Box::new(Expression::Mul(
+                        Box::new(dx_inner),
+                        Box::new(Expression::Mul(
+                            Box::new(Expression::Function(
+                                FunctionName::Cot,
+                                Box::new(inner.clone()),
+                            )),
+                            Box::new(Expression::Function(FunctionName::Csc, Box::new(inner))),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Cot => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Exp(
+                        Box::new(Expression::Function(FunctionName::Csc, Box::new(inner))),
+                        Box::new(Expression::Number(2.0)),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcCos => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(-1.0)),
+                        Box::new(Expression::Exp(
+                            Box::new(Expression::Sub(
+                                Box::new(Expression::Number(1.0)),
+                                Box::new(Expression::Exp(
+                                    Box::new(inner),
+                                    Box::new(Expression::Number(2.0)),
+                                )),
+                            )),
+                            Box::new(Expression::Number(0.5)),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcSin => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(1.0)),
+                        Box::new(Expression::Exp(
+                            Box::new(Expression::Sub(
+                                Box::new(Expression::Number(1.0)),
+                                Box::new(Expression::Exp(
+                                    Box::new(inner),
+                                    Box::new(Expression::Number(2.0)),
+                                )),
+                            )),
+                            Box::new(Expression::Number(0.5)),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcTan => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(1.0)),
+                        Box::new(Expression::Add(
+                            Box::new(Expression::Number(1.0)),
+                            Box::new(Expression::Exp(
+                                Box::new(inner),
+                                Box::new(Expression::Number(2.0)),
+                            )),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcSec => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(1.0)),
+                        Box::new(Expression::Mul(
+                            Box::new(Expression::Function(
+                                FunctionName::Abs,
+                                Box::new(inner.clone()),
+                            )),
+                            Box::new(Expression::Exp(
+                                Box::new(Expression::Sub(
+                                    Box::new(Expression::Number(1.0)),
+                                    Box::new(Expression::Exp(
+                                        Box::new(inner),
+                                        Box::new(Expression::Number(2.0)),
+                                    )),
+                                )),
+                                Box::new(Expression::Number(0.5)),
+                            )),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcCsc => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(-1.0)),
+                        Box::new(Expression::Mul(
+                            Box::new(inner.clone()),
+                            Box::new(Expression::Exp(
+                                Box::new(Expression::Sub(
+                                    Box::new(Expression::Exp(
+                                        Box::new(inner),
+                                        Box::new(Expression::Number(2.0)),
+                                    )),
+                                    Box::new(Expression::Number(1.0)),
+                                )),
+                                Box::new(Expression::Number(0.5)),
+                            )),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::ArcCot => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(-1.0)),
+                        Box::new(Expression::Add(
+                            Box::new(Expression::Exp(
+                                Box::new(inner),
+                                Box::new(Expression::Number(2.0)),
+                            )),
+                            Box::new(Expression::Number(1.0)),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Ln => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(1.0)),
+                        Box::new(inner),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Log => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(Expression::Number(1.0)),
+                        Box::new(Expression::Mul(
+                            Box::new(inner),
+                            Box::new(Expression::Function(
+                                FunctionName::Ln,
+                                Box::new(Expression::Number(10.0)),
+                            )),
+                        )),
+                    )),
+                );
+
+                res.simplify()
+            }
+            FunctionName::Abs => {
+                let res = Expression::Mul(
+                    Box::new(dx_inner),
+                    Box::new(Expression::Div(
+                        Box::new(inner.clone()),
+                        Box::new(Expression::Function(FunctionName::Abs, Box::new(inner))),
+                    )),
+                );
+
+                res.simplify()
+            }
         }
     }
 }
@@ -91,7 +304,7 @@ impl EqInfo for Expression {
             Expression::Div(left, right) => left.has_variable() || right.has_variable(),
             Expression::Variable(_, _) => true,
             Expression::Exp(base, exp) => base.has_variable() || exp.has_variable(),
-            _ => unimplemented!(),
+            Expression::Function(_, inner) => inner.has_variable(),
         }
     }
 }
@@ -144,10 +357,12 @@ impl Simplify for Expression {
             Expression::Mul(left, right) => {
                 let left = left.simplify();
                 let right = right.simplify();
-                let mut res = Expression::Sub(Box::new(left.clone()), Box::new(right.clone()));
+                let mut res = Expression::Mul(Box::new(left.clone()), Box::new(right.clone()));
 
                 if let Expression::Number(num) = left {
-                    if num == 0.0 {
+                    if let Expression::Number(right_num) = right {
+                        res = Expression::Number(num * right_num);
+                    } else if num == 0.0 {
                         res = Expression::Number(0.0);
                     } else if num == 1.0 {
                         res = right.clone();
@@ -160,7 +375,7 @@ impl Simplify for Expression {
                     if num == 0.0 {
                         res = Expression::Number(0.0);
                     } else if num == 1.0 {
-                        res = right.clone();
+                        res = left.clone();
                     } else if num == -1.0 {
                         if let Expression::Number(left_num) = left {
                             res = Expression::Number(-left_num);
@@ -226,6 +441,14 @@ impl Simplify for Expression {
                     }
                 }
 
+                if let Expression::Variable(name, var_exp) = &base {
+                    let temp = Expression::Mul(var_exp.clone(), Box::new(exp.clone()));
+                    res = Some(Expression::Variable(
+                        name.clone(),
+                        Box::new(temp.simplify()),
+                    ));
+                }
+
                 res.unwrap_or(Expression::Exp(Box::new(base), Box::new(exp)))
             }
         }
@@ -236,17 +459,59 @@ impl Derivable for Expression {
     fn derive(&mut self) -> Self {
         match self {
             Expression::Add(left, right) => {
-                *left.as_mut() = left.derive();
-                *right.as_mut() = right.derive();
+                let left = left.derive();
+                let right = right.derive();
 
-                let res = Expression::Add(left.clone(), right.clone());
+                let res = Expression::Add(Box::new(left), Box::new(right));
                 res.simplify()
             }
             Expression::Sub(left, right) => {
-                *left.as_mut() = left.derive();
-                *right.as_mut() = right.derive();
+                let left = left.derive();
+                let right = right.derive();
 
-                let res = Expression::Add(left.clone(), right.clone());
+                let res = Expression::Add(Box::new(left), Box::new(right));
+                res.simplify()
+            }
+            Expression::Mul(left, right) => {
+                let left_derive = left.derive();
+                let right_derive = right.derive();
+
+                let res = Expression::Add(
+                    Box::new(Expression::Mul(left.clone(), Box::new(right_derive))),
+                    Box::new(Expression::Mul(right.clone(), Box::new(left_derive))),
+                );
+                res.simplify()
+            }
+            Expression::Div(top, bottom) => {
+                let top_derive = top.derive();
+                let bottom_derive = bottom.derive();
+
+                let res = Expression::Div(
+                    Box::new(Expression::Sub(
+                        Box::new(Expression::Mul(bottom.clone(), Box::new(top_derive))),
+                        Box::new(Expression::Mul(top.clone(), Box::new(bottom_derive))),
+                    )),
+                    Box::new(Expression::Exp(
+                        bottom.clone(),
+                        Box::new(Expression::Number(2.0)),
+                    )),
+                );
+                res.simplify()
+            }
+            Expression::Exp(base, exp) => {
+                let res = if exp.has_variable() {
+                    unimplemented!()
+                } else {
+                    let base_derive = base.derive();
+                    Expression::Mul(
+                        Box::new(base_derive),
+                        Box::new(Expression::Sub(
+                            exp.clone(),
+                            Box::new(Expression::Number(1.0)),
+                        )),
+                    )
+                };
+
                 res.simplify()
             }
             Expression::Number(_) => Expression::Number(0.0),
@@ -269,7 +534,6 @@ impl Derivable for Expression {
                 res.simplify()
             }
             Expression::Function(func, inner) => func.derive(*inner.clone()).simplify(),
-            _ => unimplemented!(),
         }
     }
 }
