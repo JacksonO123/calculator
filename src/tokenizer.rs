@@ -1,41 +1,86 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::expression::{ExpressionToken, Operator};
+use crate::expression::{Expression, ExpressionToken, FunctionName, Operator};
 
 pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     let mut tokens: Vec<ExpressionToken> = vec![];
     let mut num_stack: Vec<char> = vec![];
-    let taken_vars: HashSet<char> = HashSet::new();
+    let taken_vars: HashSet<&str> = HashSet::new();
+    let mut taken_fns: HashMap<&str, FunctionName> = HashMap::new();
+    let mut var_name = String::new();
+
+    taken_fns.insert("cos", FunctionName::Cos);
+    taken_fns.insert("sin", FunctionName::Sin);
+    taken_fns.insert("tan", FunctionName::Tan);
+    taken_fns.insert("sec", FunctionName::Sec);
+    taken_fns.insert("csc", FunctionName::Csc);
+    taken_fns.insert("cot", FunctionName::Cot);
+    taken_fns.insert("arccos", FunctionName::ArcCos);
+    taken_fns.insert("arcsin", FunctionName::ArcSin);
+    taken_fns.insert("arctan", FunctionName::ArcTan);
+    taken_fns.insert("arcsec", FunctionName::ArcSec);
+    taken_fns.insert("arccsc", FunctionName::ArcCsc);
+    taken_fns.insert("arccot", FunctionName::ArcCot);
+    taken_fns.insert("Ln", FunctionName::Ln);
+    taken_fns.insert("Log", FunctionName::Log);
+    taken_fns.insert("Abs", FunctionName::Abs);
+    taken_fns.insert("Floor", FunctionName::Floor);
 
     for c in input.chars() {
         if c.is_whitespace() {
+            if !var_name.is_empty() {
+                if let Some(fn_value) = taken_fns.get(var_name.as_str()) {
+                    tokens.push(ExpressionToken::Function(fn_value.clone()));
+                } else if !taken_vars.contains(var_name.as_str()) {
+                    tokens.push(ExpressionToken::Variable(
+                        var_name.clone(),
+                        Expression::Number(1.0),
+                    ));
+                }
+
+                var_name.clear();
+            }
+
             continue;
         }
 
-        if is_number_related(c) {
-            num_stack.push(c);
-        } else if matches!(c, '(' | ')' | '+' | '-' | '*' | '/' | '^') {
-            if !num_stack.is_empty() {
-                let num = stack_to_number(&num_stack);
-                tokens.push(ExpressionToken::Number(num));
-                num_stack.clear();
+        if c.is_alphabetic() {
+            var_name.push(c);
+        } else {
+            if !var_name.is_empty() {
+                if let Some(fn_value) = taken_fns.get(var_name.as_str()) {
+                    tokens.push(ExpressionToken::Function(fn_value.clone()));
+                } else if !taken_vars.contains(var_name.as_str()) {
+                    tokens.push(ExpressionToken::Variable(
+                        var_name.clone(),
+                        Expression::Number(1.0),
+                    ));
+                }
+
+                var_name.clear();
             }
 
-            let token = match c {
-                '(' => ExpressionToken::LParen,
-                ')' => ExpressionToken::RParen,
-                '+' => ExpressionToken::Operator(Operator::Add),
-                '-' => ExpressionToken::Operator(Operator::Sub),
-                '*' => ExpressionToken::Operator(Operator::Mul),
-                '/' => ExpressionToken::Operator(Operator::Div),
-                '^' => ExpressionToken::Operator(Operator::Exp),
-                _ => unreachable!(),
-            };
+            if is_number_related(c) && !(c == '-' && num_stack.len() > 0) {
+                num_stack.push(c);
+            } else if matches!(c, '(' | ')' | '+' | '-' | '*' | '/' | '^') {
+                if !num_stack.is_empty() {
+                    let num = stack_to_number(&num_stack);
+                    tokens.push(ExpressionToken::Number(num));
+                    num_stack.clear();
+                }
 
-            tokens.push(token);
-        } else {
-            if !taken_vars.contains(&c) {
-                tokens.push(ExpressionToken::Variable(c))
+                let token = match c {
+                    '(' => ExpressionToken::LParen,
+                    ')' => ExpressionToken::RParen,
+                    '+' => ExpressionToken::Operator(Operator::Add),
+                    '-' => ExpressionToken::Operator(Operator::Sub),
+                    '*' => ExpressionToken::Operator(Operator::Mul),
+                    '/' => ExpressionToken::Operator(Operator::Div),
+                    '^' => ExpressionToken::Operator(Operator::Exp),
+                    _ => unreachable!(),
+                };
+
+                tokens.push(token);
             }
         }
     }

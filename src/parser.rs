@@ -1,8 +1,4 @@
-use crate::expression::{Expression, ExpressionNode, ExpressionToken, Operator};
-
-pub fn parse(tokens: Vec<ExpressionToken>) -> Expression {
-    Expression(parse_to_node(tokens))
-}
+use crate::expression::{Expression, ExpressionToken, Operator};
 
 macro_rules! create_groups {
     ($tokens:expr, $matches:pat, $not_matches:pat $(,)?) => {{
@@ -48,36 +44,68 @@ macro_rules! create_groups {
     }};
 }
 
-pub fn parse_to_node(mut tokens: Vec<ExpressionToken>) -> ExpressionNode {
-    {
-        let mut stage: Vec<ExpressionToken> = vec![];
+pub fn parse(tokens: Vec<ExpressionToken>) -> Expression {
+    let stage = tokens;
+
+    let stage = {
+        let mut res: Vec<ExpressionToken> = vec![];
 
         let mut i = 0;
-        while i < tokens.len() {
-            if let ExpressionToken::LParen = tokens[i] {
+        while i < stage.len() {
+            if let ExpressionToken::Function(name) = &stage[i] {
                 let mut temp_tokens: Vec<ExpressionToken> = vec![];
-                i += 1;
+                i += 2;
 
-                while !matches!(tokens[i], ExpressionToken::RParen) {
-                    temp_tokens.push(tokens[i].clone());
+                while i < stage.len() && !matches!(stage[i], ExpressionToken::RParen) {
+                    temp_tokens.push(stage[i].clone());
 
                     i += 1;
                 }
 
-                let node = parse_to_node(temp_tokens);
-                stage.push(ExpressionToken::Node(node));
+                let node = parse(temp_tokens);
+                res.push(ExpressionToken::Node(Expression::Function(
+                    name.clone(),
+                    Box::new(node),
+                )));
             } else {
-                stage.push(tokens[i].clone());
+                res.push(stage[i].clone());
             }
 
             i += 1;
         }
 
-        tokens.clone_from(&stage);
-    }
+        res
+    };
+
+    let stage = {
+        let mut res: Vec<ExpressionToken> = vec![];
+
+        let mut i = 0;
+        while i < stage.len() {
+            if let ExpressionToken::LParen = stage[i] {
+                let mut temp_tokens: Vec<ExpressionToken> = vec![];
+                i += 1;
+
+                while !matches!(stage[i], ExpressionToken::RParen) {
+                    temp_tokens.push(stage[i].clone());
+
+                    i += 1;
+                }
+
+                let node = parse(temp_tokens);
+                res.push(ExpressionToken::Node(node));
+            } else {
+                res.push(stage[i].clone());
+            }
+
+            i += 1;
+        }
+
+        res
+    };
 
     let stage = create_groups!(
-        tokens,
+        stage,
         ExpressionToken::Operator(Operator::Exp),
         ExpressionToken::Operator(Operator::Mul)
             | ExpressionToken::Operator(Operator::Div)
@@ -97,47 +125,45 @@ pub fn parse_to_node(mut tokens: Vec<ExpressionToken>) -> ExpressionNode {
 
     let res = match res {
         ExpressionToken::Node(n) => n,
-        _ => unreachable!(),
+        _ => panic!("Expected node"),
     };
 
     res
 }
 
-fn build_node(
-    op: &ExpressionToken,
-    pre_token: ExpressionNode,
-    post_token: ExpressionNode,
-) -> ExpressionNode {
+fn build_node(op: &ExpressionToken, pre_token: Expression, post_token: Expression) -> Expression {
     match op {
         ExpressionToken::Operator(Operator::Add) => {
-            ExpressionNode::Add(Box::new(pre_token), Box::new(post_token))
+            Expression::Add(Box::new(pre_token), Box::new(post_token))
         }
         ExpressionToken::Operator(Operator::Sub) => {
-            ExpressionNode::Sub(Box::new(pre_token), Box::new(post_token))
+            Expression::Sub(Box::new(pre_token), Box::new(post_token))
         }
         ExpressionToken::Operator(Operator::Mul) => {
-            ExpressionNode::Mul(Box::new(pre_token), Box::new(post_token))
+            Expression::Mul(Box::new(pre_token), Box::new(post_token))
         }
         ExpressionToken::Operator(Operator::Div) => {
-            ExpressionNode::Div(Box::new(pre_token), Box::new(post_token))
+            Expression::Div(Box::new(pre_token), Box::new(post_token))
         }
-        ExpressionToken::Operator(Operator::Exp) => {
-            ExpressionNode::Exp(Box::new(pre_token), Box::new(post_token))
-        }
+        ExpressionToken::Operator(Operator::Exp) => match pre_token {
+            Expression::Variable(c, _) => Expression::Variable(c, Box::new(post_token)),
+            _ => Expression::Exp(Box::new(pre_token), Box::new(post_token)),
+        },
         _ => unreachable!(),
     }
 }
 
 fn tokens_to_exp(tokens: &Vec<ExpressionToken>) -> ExpressionToken {
     if tokens.len() == 1 {
-        return tokens[0].clone();
+        let node = token_to_node(&tokens[0].clone());
+        return ExpressionToken::Node(node);
     }
 
-    let mut res: Option<ExpressionNode> = None;
+    let mut res: Option<Expression> = None;
 
     let mut i = 1;
     while i < tokens.len() {
-        if matches!(tokens[i], ExpressionToken::Operator(_)) {
+        if i < tokens.len() - 1 && matches!(tokens[i], ExpressionToken::Operator(_)) {
             let pre_token = if let Some(current) = res.clone() {
                 current
             } else {
@@ -158,11 +184,11 @@ fn tokens_to_exp(tokens: &Vec<ExpressionToken>) -> ExpressionToken {
     ExpressionToken::Node(res.expect(&format!("Invalid tokens {:?}", tokens)))
 }
 
-fn token_to_node(token: &ExpressionToken) -> ExpressionNode {
+fn token_to_node(token: &ExpressionToken) -> Expression {
     match token {
-        ExpressionToken::Number(n) => ExpressionNode::Number(*n),
+        ExpressionToken::Number(n) => Expression::Number(*n),
         ExpressionToken::Node(n) => n.clone(),
-        ExpressionToken::Variable(v) => ExpressionNode::Variable(*v),
+        ExpressionToken::Variable(v, exp) => Expression::Variable(v.clone(), Box::new(exp.clone())),
         _ => panic!("Unexpected token {:?}", token),
     }
 }

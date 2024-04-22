@@ -2,6 +2,7 @@ use std::env;
 use std::fs;
 use std::io;
 
+use crate::math::Derivable;
 use crate::parser::parse;
 use crate::tokenizer::tokenize;
 
@@ -19,9 +20,13 @@ fn main() -> io::Result<()> {
     println!("{}", input);
 
     let tokens = tokenize(input);
+    println!("tokens: {:?}", tokens);
 
-    let equation = parse(tokens);
+    let mut equation = parse(tokens);
     println!("{:#?}", equation);
+
+    let equation = equation.derive();
+    println!("d/dx => {:#?}", equation);
 
     Ok(())
 }
