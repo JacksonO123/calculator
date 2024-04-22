@@ -60,7 +60,7 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
                 var_name.clear();
             }
 
-            if is_number_related(c) && !(c == '-' && num_stack.len() > 0) {
+            if is_number_related(c) && (c != '-' || num_stack.is_empty()) {
                 num_stack.push(c);
             } else if matches!(c, '(' | ')' | '+' | '-' | '*' | '/' | '^') {
                 if !num_stack.is_empty() {
@@ -93,7 +93,7 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     tokens
 }
 
-fn stack_to_number(stack: &Vec<char>) -> f32 {
+fn stack_to_number(stack: &[char]) -> f32 {
     let mut is_neg = false;
     let mut res: f32 = 0.0;
     let mut decimal_found = false;
@@ -117,7 +117,7 @@ fn stack_to_number(stack: &Vec<char>) -> f32 {
     }
 
     if decimal_count > 0 {
-        res /= (10 as u32).pow(decimal_count) as f32;
+        res /= 10_u32.pow(decimal_count) as f32;
     }
 
     if is_neg {

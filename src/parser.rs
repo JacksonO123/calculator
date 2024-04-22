@@ -123,12 +123,10 @@ pub fn parse(tokens: Vec<ExpressionToken>) -> Expression {
 
     let res = tokens_to_exp(&stage);
 
-    let res = match res {
+    match res {
         ExpressionToken::Node(n) => n,
         _ => panic!("Expected node"),
-    };
-
-    res
+    }
 }
 
 fn build_node(op: &ExpressionToken, pre_token: Expression, post_token: Expression) -> Expression {
@@ -181,7 +179,7 @@ fn tokens_to_exp(tokens: &Vec<ExpressionToken>) -> ExpressionToken {
         i += 1;
     }
 
-    ExpressionToken::Node(res.expect(&format!("Invalid tokens {:?}", tokens)))
+    ExpressionToken::Node(res.unwrap_or_else(|| panic!("Invalid tokens {:?}", tokens)))
 }
 
 fn token_to_node(token: &ExpressionToken) -> Expression {
