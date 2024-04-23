@@ -12,21 +12,42 @@ mod parser;
 mod tokenizer;
 
 fn main() -> io::Result<()> {
-    let thing: Vec<String> = env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
-    let input_filename = thing.get(1).expect("Expected filename for input");
+    if args.len() > 1 {
+        let input_filename = args.get(1).unwrap();
 
-    let input: String = fs::read_to_string("src/input/".to_owned() + input_filename)?;
-    println!("{}", input);
+        let input: String = fs::read_to_string("src/input/".trim().to_owned() + input_filename)?;
+        println!("{}", input);
 
-    let tokens = tokenize(input);
-    println!("tokens: {:?}", tokens);
+        let tokens = tokenize(input);
 
-    let mut equation = parse(tokens);
-    println!("{:#?}", equation);
+        let expression = parse(tokens);
+        println!("{}", expression);
 
-    let equation = equation.derive();
-    println!("d/dx => {:#?}", equation);
+        let expression = expression.derive();
+        println!("d/dx => {}", expression);
+    } else {
+        repl()?;
+    }
+
+    Ok(())
+}
+
+fn repl() -> io::Result<()> {
+    loop {
+        let mut buf = String::new();
+        io::stdin().read_line(&mut buf)?;
+
+        if buf == "Exit" {
+            break;
+        }
+
+        let tokens = tokenize(buf);
+        let expression = parse(tokens);
+        let derivative = expression.derive();
+        println!("{}", derivative);
+    }
 
     Ok(())
 }

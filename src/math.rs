@@ -1,11 +1,11 @@
 use crate::expression::Expression;
 
 pub trait FnDerivable {
-    fn derive(&mut self, inner: Expression) -> Expression;
+    fn derive(&self, inner: Expression) -> Expression;
 }
 
 pub trait Derivable {
-    fn derive(&mut self) -> Self;
+    fn derive(&self) -> Self;
 }
 
 pub trait Integrable {

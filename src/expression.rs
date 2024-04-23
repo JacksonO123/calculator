@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::math::{Derivable, EqInfo, FnDerivable, Simplify};
 
 #[derive(Debug, Clone)]
@@ -28,8 +30,32 @@ pub enum FunctionName {
     Abs,
 }
 
+impl Display for FunctionName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let res = match self {
+            FunctionName::Cos => "cos",
+            FunctionName::Sin => "sin",
+            FunctionName::Tan => "tan",
+            FunctionName::Sec => "sec",
+            FunctionName::Csc => "csc",
+            FunctionName::Cot => "cot",
+            FunctionName::ArcCos => "arccos",
+            FunctionName::ArcSin => "arcsin",
+            FunctionName::ArcTan => "arctan",
+            FunctionName::ArcSec => "arcsec",
+            FunctionName::ArcCsc => "arccsc",
+            FunctionName::ArcCot => "arccot",
+            FunctionName::Ln => "ln",
+            FunctionName::Log => "log",
+            FunctionName::Abs => "abs",
+        };
+
+        write!(f, "{}", res)
+    }
+}
+
 impl FnDerivable for FunctionName {
-    fn derive(&mut self, mut inner: Expression) -> Expression {
+    fn derive(&self, inner: Expression) -> Expression {
         let dx_inner = inner.derive().simplify();
 
         match self {
@@ -294,6 +320,62 @@ pub enum Expression {
     Exp(Box<Expression>, Box<Expression>),
 }
 
+// impl Expression {
+//     to_string
+// }
+
+impl Display for Expression {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let res = match self {
+            Expression::Number(n) => n.to_string(),
+            Expression::Variable(name, exp) => {
+                let exp_str = exp.to_string();
+
+                let mut res = name.to_owned() + "^" + exp_str.as_str();
+
+                if let Expression::Number(num) = exp.as_ref() {
+                    if *num == 1.0 {
+                        res = name.clone();
+                    }
+                }
+
+                res
+            }
+            Expression::Exp(base, exp) => {
+                let base_str = base.to_string();
+                let exp_str = exp.to_string();
+                base_str.to_owned() + " + " + exp_str.as_str()
+            }
+            Expression::Function(fn_name, inner) => {
+                let inner_str = inner.to_string();
+                fn_name.to_string() + "(" + inner_str.as_str() + ")"
+            }
+            Expression::Add(left, right) => {
+                let left_str = left.to_string();
+                let right_str = right.to_string();
+                left_str.to_owned() + " + " + right_str.as_str()
+            }
+            Expression::Sub(left, right) => {
+                let left_str = left.to_string();
+                let right_str = right.to_string();
+                left_str.to_owned() + " - " + right_str.as_str()
+            }
+            Expression::Mul(left, right) => {
+                let left_str = left.to_string();
+                let right_str = right.to_string();
+                left_str.to_owned() + " * " + right_str.as_str()
+            }
+            Expression::Div(top, bottom) => {
+                let top_str = top.to_string();
+                let bottom_str = bottom.to_string();
+                top_str.to_owned() + " / " + bottom_str.as_str()
+            }
+        };
+
+        write!(f, "{}", res)
+    }
+}
+
 impl EqInfo for Expression {
     fn has_variable(&self) -> bool {
         match self {
@@ -456,7 +538,7 @@ impl Simplify for Expression {
 }
 
 impl Derivable for Expression {
-    fn derive(&mut self) -> Self {
+    fn derive(&self) -> Self {
         match self {
             Expression::Add(left, right) => {
                 let left = left.derive();
