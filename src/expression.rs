@@ -320,10 +320,6 @@ pub enum Expression {
     Exp(Box<Expression>, Box<Expression>),
 }
 
-// impl Expression {
-//     to_string
-// }
-
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let res = match self {
@@ -344,7 +340,7 @@ impl Display for Expression {
             Expression::Exp(base, exp) => {
                 let base_str = base.to_string();
                 let exp_str = exp.to_string();
-                base_str.to_owned() + " + " + exp_str.as_str()
+                base_str.to_owned() + "^(" + exp_str.as_str() + ")"
             }
             Expression::Function(fn_name, inner) => {
                 let inner_str = inner.to_string();
@@ -353,22 +349,22 @@ impl Display for Expression {
             Expression::Add(left, right) => {
                 let left_str = left.to_string();
                 let right_str = right.to_string();
-                left_str.to_owned() + " + " + right_str.as_str()
+                "(".to_owned() + left_str.as_str() + " + " + right_str.as_str() + ")"
             }
             Expression::Sub(left, right) => {
                 let left_str = left.to_string();
                 let right_str = right.to_string();
-                left_str.to_owned() + " - " + right_str.as_str()
+                "(".to_owned() + left_str.as_str() + " - " + right_str.as_str() + ")"
             }
             Expression::Mul(left, right) => {
                 let left_str = left.to_string();
                 let right_str = right.to_string();
-                left_str.to_owned() + " * " + right_str.as_str()
+                "(".to_owned() + left_str.as_str() + " * " + right_str.as_str() + ")"
             }
             Expression::Div(top, bottom) => {
                 let top_str = top.to_string();
                 let bottom_str = bottom.to_string();
-                top_str.to_owned() + " / " + bottom_str.as_str()
+                "(".to_owned() + top_str.as_str() + " / " + bottom_str.as_str() + ")"
             }
         };
 
@@ -582,7 +578,20 @@ impl Derivable for Expression {
             }
             Expression::Exp(base, exp) => {
                 let res = if exp.has_variable() {
-                    unimplemented!()
+                    if base.has_variable() {
+                        let temp = Expression::Mul(
+                            exp.clone(),
+                            Box::new(Expression::Function(FunctionName::Ln, base.clone())),
+                        );
+                        let temp = temp.derive();
+
+                        Expression::Mul(Box::new(self.clone()), Box::new(temp))
+                    } else {
+                        Expression::Mul(
+                            Box::new(Expression::Function(FunctionName::Ln, base.clone())),
+                            Box::new(self.clone()),
+                        )
+                    }
                 } else {
                     let base_derive = base.derive();
                     Expression::Mul(
@@ -599,7 +608,19 @@ impl Derivable for Expression {
             Expression::Number(_) => Expression::Number(0.0),
             Expression::Variable(name, exp) => {
                 let res = if exp.has_variable() {
-                    unimplemented!()
+                    let temp = Expression::Mul(
+                        exp.clone(),
+                        Box::new(Expression::Function(
+                            FunctionName::Ln,
+                            Box::new(Expression::Variable(
+                                name.clone(),
+                                Box::new(Expression::Number(1.0)),
+                            )),
+                        )),
+                    );
+                    let temp = temp.derive();
+
+                    Expression::Mul(Box::new(self.clone()), Box::new(temp))
                 } else {
                     Expression::Mul(
                         Box::new(*exp.clone()),

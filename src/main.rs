@@ -18,7 +18,6 @@ fn main() -> io::Result<()> {
         let input_filename = args.get(1).unwrap();
 
         let input: String = fs::read_to_string("src/input/".trim().to_owned() + input_filename)?;
-        println!("{}", input);
 
         let tokens = tokenize(input);
 
@@ -39,15 +38,9 @@ fn repl() -> io::Result<()> {
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
 
-        if buf == "Exit" {
-            break;
-        }
-
         let tokens = tokenize(buf);
         let expression = parse(tokens);
         let derivative = expression.derive();
-        println!("{}", derivative);
+        println!("d/dx => {}", derivative);
     }
-
-    Ok(())
 }

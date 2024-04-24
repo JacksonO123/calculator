@@ -5,7 +5,7 @@ use crate::expression::{Expression, ExpressionToken, FunctionName, Operator};
 pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     let mut tokens: Vec<ExpressionToken> = vec![];
     let mut num_stack: Vec<char> = vec![];
-    let taken_vars: HashSet<&str> = HashSet::new();
+    let mut taken_vars: HashSet<&str> = HashSet::new();
     let mut taken_fns: HashMap<&str, FunctionName> = HashMap::new();
     let mut var_name = String::new();
 
@@ -25,6 +25,9 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     taken_fns.insert("log", FunctionName::Log);
     taken_fns.insert("abs", FunctionName::Abs);
 
+    taken_vars.insert("e");
+    taken_vars.insert("pi");
+
     for c in input.chars() {
         if c.is_whitespace() {
             if !var_name.is_empty() {
@@ -39,11 +42,7 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
 
                 var_name.clear();
             }
-
-            continue;
-        }
-
-        if c.is_alphabetic() {
+        } else if c.is_alphabetic() {
             var_name.push(c);
         } else {
             if !var_name.is_empty() {
