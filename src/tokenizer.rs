@@ -58,8 +58,12 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
                 var_name.clear();
             }
 
-            if is_number_related(c) && (c != '-' || num_stack.is_empty()) {
-                num_stack.push(c);
+            if is_number_related(c) {
+                if c == '-' && !num_stack.is_empty() {
+                    num_stack.push(c);
+                } else {
+                    num_stack.push(c);
+                }
             } else if matches!(c, '(' | ')' | '+' | '-' | '*' | '/' | '^') {
                 if !num_stack.is_empty() {
                     let num = stack_to_number(&num_stack);

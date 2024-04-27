@@ -11,7 +11,7 @@ pub enum Operator {
     Exp,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum FunctionName {
     Cos,
     Sin,
@@ -308,7 +308,7 @@ pub enum ExpressionToken {
     Node(Expression),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expression {
     Number(f32),
     Variable(String, Box<Expression>),
@@ -461,6 +461,14 @@ impl Simplify for Expression {
                     }
                 }
 
+                if let Expression::Div(top, bottom) = right {
+                    if let Expression::Number(num) = top.as_ref() {
+                        if *num == 1.0 {
+                            res = Expression::Div(Box::new(left.clone()), bottom.clone());
+                        }
+                    }
+                }
+
                 res
             }
             Expression::Div(upper, lower) => {
@@ -474,6 +482,8 @@ impl Simplify for Expression {
                     } else if num == 0.0 {
                         panic!("Divide by 0");
                     }
+                } else if upper == lower {
+                    res = Expression::Number(1.0);
                 }
 
                 res
@@ -547,7 +557,7 @@ impl Derivable for Expression {
                 let left = left.derive();
                 let right = right.derive();
 
-                let res = Expression::Add(Box::new(left), Box::new(right));
+                let res = Expression::Sub(Box::new(left), Box::new(right));
                 res.simplify()
             }
             Expression::Mul(left, right) => {

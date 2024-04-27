@@ -3,6 +3,7 @@ use std::fs;
 use std::io;
 
 use crate::math::Derivable;
+use crate::math::Simplify;
 use crate::parser::parse;
 use crate::tokenizer::tokenize;
 
@@ -40,7 +41,8 @@ fn repl() -> io::Result<()> {
 
         let tokens = tokenize(buf);
         let expression = parse(tokens);
-        let derivative = expression.derive();
+        println!("{}", expression);
+        let derivative = expression.simplify().derive();
         println!("d/dx => {}", derivative);
     }
 }
