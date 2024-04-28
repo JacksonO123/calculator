@@ -12,6 +12,23 @@ pub enum Operator {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum Constant {
+    E,
+    PI,
+}
+
+impl Display for Constant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let res = match self {
+            Constant::E => "e",
+            Constant::PI => "pi",
+        };
+
+        write!(f, "{}", res)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum FunctionName {
     Cos,
     Sin,
@@ -306,6 +323,7 @@ pub enum ExpressionToken {
     Variable(String, Expression),
     Function(FunctionName),
     Node(Expression),
+    Constant(Constant),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -318,11 +336,13 @@ pub enum Expression {
     Mul(Box<Expression>, Box<Expression>),
     Div(Box<Expression>, Box<Expression>),
     Exp(Box<Expression>, Box<Expression>),
+    Constant(Constant),
 }
 
 impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let res = match self {
+            Expression::Constant(c) => c.to_string(),
             Expression::Number(n) => n.to_string(),
             Expression::Variable(name, exp) => {
                 let exp_str = exp.to_string();
@@ -383,6 +403,7 @@ impl EqInfo for Expression {
             Expression::Variable(_, _) => true,
             Expression::Exp(base, exp) => base.has_variable() || exp.has_variable(),
             Expression::Function(_, inner) => inner.has_variable(),
+            Expression::Constant(_) => false,
         }
     }
 }
@@ -390,6 +411,7 @@ impl EqInfo for Expression {
 impl Simplify for Expression {
     fn simplify(&self) -> Self {
         match self {
+            Expression::Constant(_) => self.clone(),
             Expression::Add(left, right) => {
                 let left = left.simplify();
                 let right = right.simplify();
@@ -546,6 +568,7 @@ impl Simplify for Expression {
 impl Derivable for Expression {
     fn derive(&self) -> Self {
         match self {
+            Expression::Constant(_) => Expression::Number(0.0),
             Expression::Add(left, right) => {
                 let left = left.derive();
                 let right = right.derive();

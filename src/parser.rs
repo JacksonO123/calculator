@@ -45,6 +45,10 @@ macro_rules! create_groups {
 }
 
 pub fn parse(tokens: Vec<ExpressionToken>) -> Expression {
+    if tokens.len() == 1 {
+        return token_to_node(&tokens[0]);
+    }
+
     let stage = tokens;
 
     let stage = {
@@ -53,14 +57,29 @@ pub fn parse(tokens: Vec<ExpressionToken>) -> Expression {
         let mut i = 0;
         while i < stage.len() {
             if let ExpressionToken::Function(name) = &stage[i] {
+                let mut num_parens = 1;
                 let mut temp_tokens: Vec<ExpressionToken> = vec![];
                 i += 2;
 
-                while i < stage.len() && !matches!(stage[i], ExpressionToken::RParen) {
-                    temp_tokens.push(stage[i].clone());
+                while i < stage.len() && num_parens > 0 {
+                    match stage[i] {
+                        ExpressionToken::LParen => {
+                            num_parens += 1;
+                        }
+                        ExpressionToken::RParen => {
+                            num_parens -= 1;
+                        }
+                        _ => {}
+                    }
+
+                    if num_parens > 0 {
+                        temp_tokens.push(stage[i].clone());
+                    }
 
                     i += 1;
                 }
+
+                i -= 1;
 
                 let node = parse(temp_tokens);
                 res.push(ExpressionToken::Node(Expression::Function(
@@ -187,6 +206,7 @@ fn token_to_node(token: &ExpressionToken) -> Expression {
         ExpressionToken::Number(n) => Expression::Number(*n),
         ExpressionToken::Node(n) => n.clone(),
         ExpressionToken::Variable(v, exp) => Expression::Variable(v.clone(), Box::new(exp.clone())),
+        ExpressionToken::Constant(constant) => Expression::Constant(constant.clone()),
         _ => panic!("Unexpected token {:?}", token),
     }
 }

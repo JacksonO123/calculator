@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::expression::{Expression, ExpressionToken, FunctionName, Operator};
+use crate::expression::{Constant, Expression, ExpressionToken, FunctionName, Operator};
 
 pub fn tokenize(input: String) -> Vec<ExpressionToken> {
     let mut tokens: Vec<ExpressionToken> = vec![];
@@ -33,7 +33,15 @@ pub fn tokenize(input: String) -> Vec<ExpressionToken> {
             if !var_name.is_empty() {
                 if let Some(fn_value) = taken_fns.get(var_name.as_str()) {
                     tokens.push(ExpressionToken::Function(fn_value.clone()));
-                } else if !taken_vars.contains(var_name.as_str()) {
+                } else if taken_vars.contains(var_name.as_str()) {
+                    let constant = match var_name.as_str() {
+                        "e" => Constant::E,
+                        "pi" => Constant::PI,
+                        _ => unreachable!(),
+                    };
+
+                    tokens.push(ExpressionToken::Constant(constant));
+                } else {
                     tokens.push(ExpressionToken::Variable(
                         var_name.clone(),
                         Expression::Number(1.0),
