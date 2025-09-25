@@ -1,13 +1,57 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-pub inline fn createMut(comptime T: type, allocator: Allocator, obj: T) Allocator.Error!*T {
-    const ptr = try allocator.create(T);
-    ptr.* = obj;
-    return ptr;
+const bufferedWriterSize = 1024 * 32;
+pub const BufferedWriterType = std.io.BufferedWriter(bufferedWriterSize, std.fs.File.Writer);
+
+pub fn getBufferedWriter() BufferedWriterType {
+    const stdout = std.io.getStdOut();
+    const stdoutWriter = stdout.writer();
+    return std.io.BufferedWriter(bufferedWriterSize, @TypeOf(stdoutWriter)){
+        .unbuffered_writer = stdoutWriter,
+    };
 }
 
-pub fn initMutPtrT(comptime T: type, allocator: Allocator) !*T {
-    const data = T.init(allocator);
-    return try createMut(T, allocator, data);
+const StackError = error{
+    StackOverflow,
+};
+
+pub fn Stack(comptime T: type, size: comptime_int) type {
+    return struct {
+        const Self = @This();
+
+        data: []T,
+        current: usize = size - 1,
+
+        pub fn initWithIndices(allocator: Allocator) !Self {
+            const slice = try allocator.alloc(T, size);
+            var res: Self = .{
+                .data = slice,
+            };
+
+            var i: usize = 0;
+            while (i < size) : (i += 1) {
+                res.data[i] = i;
+            }
+
+            return res;
+        }
+
+        pub fn pop(self: *Self) ?T {
+            if (self.current == 0) return null;
+
+            const res = self.data[self.current];
+            self.current -= 1;
+            return res;
+        }
+
+        pub fn push(self: *Self, item: T) !void {
+            if (self.current == size - 1) {
+                return StackError.StackOverflow;
+            }
+
+            self.current += 1;
+            self.data[self.current] = item;
+        }
+    };
 }

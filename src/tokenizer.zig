@@ -1,10 +1,7 @@
 const std = @import("std");
 const calc = @import("calc.zig");
-const logger = calc.logger;
-const utils = calc.utils;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
-const Logger = logger.Logger;
 
 pub const TokenizeError = error{
     NumberHasTwoPeriods,
@@ -308,16 +305,14 @@ pub const TokenUtil = struct {
 
     pos: TokenPosition,
     tokens: []Token,
-    logger: *Logger,
 
-    pub fn init(loggerUtil: *Logger, tokens: []Token) Self {
+    pub fn init(tokens: []Token) Self {
         return Self{
             .pos = .{
                 .index = 0,
                 .currentLine = 0,
             },
             .tokens = tokens,
-            .logger = loggerUtil,
         };
     }
 

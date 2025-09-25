@@ -2,10 +2,10 @@ const std = @import("std");
 const calc = @import("calc.zig");
 const tokenizer = calc.tokenizer;
 const logger = calc.logger;
-const utils = calc.utils;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const TokenUtil = tokenizer.TokenUtil;
+const Context = calc.Context;
 
 const ParserError = error{
     UnexpectedToken,
@@ -54,33 +54,33 @@ pub const Node = union(NodeType) {
     }
 };
 
-pub fn parse(allocator: Allocator, tokenUtil: *TokenUtil) !*Node {
-    const token = try tokenUtil.take();
+pub fn parse(allocator: Allocator, context: *Context) !*Node {
+    const token = try context.tokens.take();
     const expr = switch (token.tokType) {
         .LParen => a: {
-            const tempExpr = try parse(allocator, tokenUtil);
-            try tokenUtil.expectToken(.RParen);
+            const tempExpr = try parse(allocator, context);
+            try context.tokens.expectToken(.RParen);
             break :a tempExpr;
         },
-        .Number => |num| try utils.createMut(Node, allocator, .{
+        .Number => |num| try context.nodePool.newNode(.{
             .Number = num,
         }),
-        .RParen, .Operator => return tokenUtil.logger.logError(ParserError.UnexpectedToken),
+        .RParen, .Operator => return context.logger.logError(ParserError.UnexpectedToken),
         .NewLine => unreachable,
     };
 
-    const opTok = tokenUtil.take() catch {
+    const opTok = context.tokens.take() catch {
         return expr;
     };
 
     if (opTok.tokType != .Operator) {
-        tokenUtil.returnToken();
+        context.tokens.returnToken();
         return expr;
     }
 
-    const right = try parse(allocator, tokenUtil);
+    const right = try parse(allocator, context);
 
-    const node = try utils.createMut(Node, allocator, .{
+    const node = try context.nodePool.newNode(.{
         .Expr = .{
             .op = opTok.tokType.Operator,
             .left = expr,

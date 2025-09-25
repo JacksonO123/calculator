@@ -4,10 +4,13 @@ const calc = @import("calc.zig");
 const tokenizer = calc.tokenizer;
 const parser = calc.parser;
 const logger = calc.logger;
-const free = calc.free;
+const nodePool = calc.nodePool;
+const utils = calc.utils;
 const Allocator = std.mem.Allocator;
 const Logger = logger.Logger;
 const TokenUtil = tokenizer.TokenUtil;
+const Context = calc.Context;
+const NodePool = nodePool.NodePool;
 
 pub fn main() !void {
     const dbg = builtin.mode == .Debug;
@@ -29,20 +32,22 @@ pub fn main() !void {
     const tokens = try tokenizer.tokenize(allocator, code);
     defer allocator.free(tokens);
 
-    for (tokens) |token| {
-        std.debug.print("{any}\n", .{token});
-    }
-
-    var tokenUtil: TokenUtil = undefined;
+    var tokenUtil = TokenUtil.init(tokens);
     var loggerUtil = Logger.init(allocator, &tokenUtil, code);
-    tokenUtil = TokenUtil.init(&loggerUtil, tokens);
-    loggerUtil.tokens = &tokenUtil;
+    var nodePoolUtil = try NodePool.init(allocator);
+    defer nodePoolUtil.deinit();
 
-    const tree = try parser.parse(allocator, &tokenUtil);
-    defer free.freeNode(allocator, tree);
+    var context = Context{
+        .tokens = &tokenUtil,
+        .nodePool = &nodePoolUtil,
+        .logger = &loggerUtil,
+    };
 
-    const stdout = std.io.getStdOut();
-    const writer = stdout.writer();
+    const tree = try parser.parse(allocator, &context);
+
+    var bufferedWriter = utils.getBufferedWriter();
+    defer bufferedWriter.flush() catch {};
+    const writer = bufferedWriter.writer();
 
     try tree.write(writer);
     try writer.writeByte('\n');
