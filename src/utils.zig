@@ -20,21 +20,27 @@ pub fn Stack(comptime T: type, size: comptime_int) type {
     return struct {
         const Self = @This();
 
+        allocator: Allocator,
         data: []T,
         current: usize = size - 1,
 
-        pub fn initWithIndices(allocator: Allocator) !Self {
+        pub fn initPtrs(allocator: Allocator, start: T) !Self {
             const slice = try allocator.alloc(T, size);
             var res: Self = .{
+                .allocator = allocator,
                 .data = slice,
             };
 
             var i: usize = 0;
             while (i < size) : (i += 1) {
-                res.data[i] = i;
+                res.data[i] = @ptrFromInt(@intFromPtr(start) + (i * @sizeOf(T) * 8));
             }
 
             return res;
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.allocator.free(self.data);
         }
 
         pub fn pop(self: *Self) ?T {

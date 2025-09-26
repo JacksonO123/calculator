@@ -9,9 +9,9 @@ const NodePoolError = error{
     NoMoreNodes,
 };
 
-const NUM_NODES = 100000;
+const NUM_NODES = 10;
 
-const FreeNodesStack = Stack(usize, NUM_NODES);
+const FreeNodesStack = Stack(*parser.Node, NUM_NODES);
 
 pub const NodePool = struct {
     const Self = @This();
@@ -22,23 +22,25 @@ pub const NodePool = struct {
 
     pub fn init(allocator: Allocator) !Self {
         const slice = try allocator.alloc(parser.Node, NUM_NODES);
+        const stack = try FreeNodesStack.initPtrs(allocator, &slice[0]);
 
         return .{
             .allocator = allocator,
             .nodes = slice,
-            .freeNodes = try FreeNodesStack.initWithIndices(allocator),
+            .freeNodes = stack,
         };
     }
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.nodes);
+        self.freeNodes.deinit();
     }
 
     pub fn newNode(self: *Self, val: parser.Node) !*parser.Node {
-        const freeIndex = self.freeNodes.pop();
-        if (freeIndex) |index| {
-            self.nodes[index] = val;
-            return &self.nodes[index];
+        const freePtr = self.freeNodes.pop();
+        if (freePtr) |ptr| {
+            ptr.* = val;
+            return ptr;
         }
 
         return NodePoolError.NoMoreNodes;
