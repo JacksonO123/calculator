@@ -45,12 +45,14 @@ pub fn main() !void {
 
     const tree = try parser.parse(allocator, &context);
 
-    var bufferedWriter = utils.getBufferedWriter();
-    defer bufferedWriter.flush() catch {};
-    const writer = bufferedWriter.writer();
+    var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
+    var writer = std.fs.File.stdout().writer(&buffer);
+    defer writer.end() catch {
+        std.debug.print("problem\n", .{});
+    };
 
-    try tree.write(writer);
-    try writer.writeByte('\n');
+    try tree.write(&writer);
+    try writer.interface.writeAll("\n");
 }
 
 fn readRelativeFile(allocator: Allocator, path: []const u8) ![]const u8 {

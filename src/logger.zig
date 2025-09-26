@@ -2,6 +2,7 @@ const std = @import("std");
 const calc = @import("calc.zig");
 const logger = calc.logger;
 const tokenizer = calc.tokenizer;
+const utils = calc.utils;
 const TokenUtil = tokenizer.TokenUtil;
 const File = std.fs.File;
 const Allocator = std.mem.Allocator;
@@ -32,9 +33,12 @@ pub const Logger = struct {
     }
 
     pub fn logError(self: *Self, err: anyerror) anyerror {
-        const writer = std.io.getStdOut().writer();
-        const errStr = @errorName(err);
+        var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
+        var writer = std.fs.File.stdout().writer(&buffer);
+        defer writer.end() catch {};
+        var interface = writer.interface;
 
+        const errStr = @errorName(err);
         const numSurroundingLines = 1;
         const contextBlock = findSurroundingLines(
             self.code,
@@ -52,27 +56,27 @@ pub const Logger = struct {
             self.code,
         );
 
-        writer.writeAll("Error: ") catch {};
-        writer.writeAll(errStr) catch {};
-        writer.writeByte('\n') catch {};
+        try interface.writeAll("Error: ");
+        try interface.writeAll(errStr);
+        try interface.writeByte('\n');
 
         if (beforeLines.len > 0) {
-            writer.writeAll(beforeLines) catch {};
-            writer.writeByte('\n') catch {};
+            try interface.writeAll(beforeLines);
+            try interface.writeByte('\n');
         }
 
-        writer.writeAll(line) catch {};
-        writer.writeByte('\n') catch {};
+        try interface.writeAll(line);
+        try interface.writeByte('\n');
 
         var i: usize = 0;
         while (i < startOffset) : (i += 1) {
-            writer.writeByte(' ') catch {};
+            try interface.writeByte(' ');
         }
-        writer.writeAll(&[_]u8{ '^', '\n' }) catch {};
+        try interface.writeAll(&[_]u8{ '^', '\n' });
 
         if (afterLines.len > 0) {
-            writer.writeAll(afterLines) catch {};
-            writer.writeByte('\n') catch {};
+            try interface.writeAll(afterLines);
+            try interface.writeByte('\n');
         }
 
         return err;

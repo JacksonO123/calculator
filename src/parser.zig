@@ -6,6 +6,7 @@ const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const TokenUtil = tokenizer.TokenUtil;
 const Context = calc.Context;
+const Writer = std.fs.File.Writer;
 
 const ParserError = error{
     UnexpectedToken,
@@ -14,18 +15,18 @@ const ParserError = error{
 const ExprNode = struct {
     const Self = @This();
 
-    op: tokenizer.OperatorType,
     left: *Node,
     right: *Node,
+    op: tokenizer.OperatorType,
 
-    pub fn write(self: Self, writer: anytype) std.io.AnyWriter.Error!void {
-        try writer.writeByte('(');
+    pub fn write(self: Self, writer: *Writer) std.io.AnyWriter.Error!void {
+        try writer.interface.writeAll("(");
         try self.left.write(writer);
-        try writer.writeByte(' ');
+        try writer.interface.writeAll(" ");
         try self.op.write(writer);
-        try writer.writeByte(' ');
+        try writer.interface.writeAll(" ");
         try self.right.write(writer);
-        try writer.writeByte(')');
+        try writer.interface.writeAll(")");
     }
 };
 
@@ -40,15 +41,15 @@ pub const Node = union(NodeType) {
     Expr: ExprNode,
     Number: tokenizer.Number,
 
-    pub fn write(self: Self, writer: anytype) !void {
+    pub fn write(self: Self, writer: *Writer) !void {
         switch (self) {
             .Expr => |expr| try expr.write(writer),
             .Number => |num| {
                 if (!num.isPositive) {
-                    try writer.writeByte('-');
+                    try writer.interface.writeAll("-");
                 }
 
-                try std.fmt.formatInt(num.data, 10, .lower, .{}, writer);
+                try writer.interface.print("{d}", .{num.data});
             },
         }
     }
