@@ -4,14 +4,9 @@ const parser = calc.parser;
 const utils = calc.utils;
 const Allocator = std.mem.Allocator;
 const Stack = utils.Stack;
-
-const NodePoolError = error{
-    NoMoreNodes,
-};
+const ArrayList = std.ArrayList;
 
 const NUM_NODES = 1024 * 64;
-
-const FreeNodesStack = Stack(*parser.Node, NUM_NODES);
 
 const NodePoolChunk = struct {
     nodes: []parser.Node,
@@ -24,7 +19,7 @@ pub const NodePool = struct {
     allocator: Allocator,
     root: *NodePoolChunk,
     last: *NodePoolChunk,
-    freeNodes: *FreeNodesStack,
+    freeNodes: *ArrayList(*parser.Node),
 
     fn newChunk(allocator: Allocator) !*NodePoolChunk {
         const nodes = try allocator.alloc(parser.Node, NUM_NODES);
@@ -36,13 +31,13 @@ pub const NodePool = struct {
     }
 
     pub fn init(allocator: Allocator) !Self {
-        const chunk = try Self.newChunk(allocator);
-        const stack = try FreeNodesStack.init(allocator);
+        const chunk = try newChunk(allocator);
+        const stack = try ArrayList(*parser.Node).initCapacity(allocator, NUM_NODES);
         var i: usize = 0;
-        while (i < stack.data.items.len) : (i += 1) {
-            stack.data.items[i] = &chunk.nodes[i];
+        while (i < stack.items.len) : (i += 1) {
+            stack.items[i] = &chunk.nodes[i];
         }
-        const stackPtr = try utils.createMut(FreeNodesStack, allocator, stack);
+        const stackPtr = try utils.createMut(ArrayList(*parser.Node), allocator, stack);
 
         return .{
             .allocator = allocator,
@@ -60,7 +55,7 @@ pub const NodePool = struct {
             current = chunk.next;
         }
 
-        self.freeNodes.deinit();
+        self.freeNodes.deinit(self.allocator);
         self.allocator.destroy(self.freeNodes);
     }
 
@@ -76,13 +71,16 @@ pub const NodePool = struct {
     }
 
     fn appendChunk(self: *Self) !void {
-        const chunk = try Self.newChunk(self.allocator);
+        const chunk = try newChunk(self.allocator);
         self.last.next = chunk;
         self.last = chunk;
-        var slice = try self.freeNodes.appendChunk();
+
+        var ptrs: [NUM_NODES]*parser.Node = undefined;
         var i: usize = 0;
-        while (i < slice.len) : (i += 1) {
-            slice[i] = &chunk.nodes[i];
+        while (i < ptrs.len) : (i += 1) {
+            ptrs[i] = &chunk.nodes[i];
         }
+
+        try self.freeNodes.appendSlice(self.allocator, &ptrs);
     }
 };

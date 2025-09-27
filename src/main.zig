@@ -47,9 +47,7 @@ pub fn main() !void {
 
     var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
     var writer = std.fs.File.stdout().writer(&buffer);
-    defer writer.end() catch {
-        std.debug.print("problem\n", .{});
-    };
+    defer writer.end() catch {};
 
     try tree.write(&writer);
     try writer.interface.writeAll("\n");
