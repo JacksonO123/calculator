@@ -35,10 +35,10 @@ const TokenVariants = enum {
 pub const OperatorType = enum {
     const Self = @This();
 
-    Add,
-    Sub,
     Mult,
     Div,
+    Add,
+    Sub,
 
     pub fn toChar(self: Self) u8 {
         return switch (self) {

@@ -75,7 +75,7 @@ fn rotatePrecedence(node: *Node) *Node {
         (expr.op == .Sub and rightExpr.op == .Sub))
     {
         const childLeft = rightExpr.left;
-        rightNode.Expr.right = childLeft;
+        node.Expr.right = childLeft;
         rightNode.Expr.left = rotatePrecedence(node);
         return rightNode;
     }
