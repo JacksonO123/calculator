@@ -32,8 +32,12 @@ pub fn main(init: std.process.Init) !void {
     var context = Context.init(&tokenUtil, &loggerUtil);
 
     const tree = try parser.parse(init.arena.allocator(), &context, writer);
+    const simple = try tree.simplify(init.arena.allocator());
 
     try tree.write(writer);
+    try writer.writeAll("\n");
+
+    try simple.write(writer);
     try writer.writeAll("\n");
     try writer.flush();
 }

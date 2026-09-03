@@ -30,6 +30,7 @@ const TokenVariants = enum {
     RParen,
     Operator,
     Number,
+    Variable,
 };
 
 pub const OperatorType = enum {
@@ -54,17 +55,13 @@ pub const OperatorType = enum {
     }
 };
 
-pub const Number = struct {
-    data: u64,
-    isPositive: bool,
-};
-
 const TokenType = union(TokenVariants) {
     NewLine,
     LParen,
     RParen,
     Operator: OperatorType,
-    Number: Number,
+    Number: i64,
+    Variable: []const u8,
 };
 
 pub const Token = struct {
@@ -123,10 +120,7 @@ fn parseNextToken(charUtil: *CharUtil) TokenizeError!?Token {
             if (std.ascii.isDigit(next)) {
                 const data = try parseNumber(charUtil);
                 return Token.initRange(.{
-                    .Number = .{
-                        .data = data.value,
-                        .isPositive = false,
-                    },
+                    .Number = -data.value,
                 }, pos, pos + data.length - 1);
             }
 
@@ -139,11 +133,20 @@ fn parseNextToken(charUtil: *CharUtil) TokenizeError!?Token {
                 charUtil.returnChar();
                 const data = try parseNumber(charUtil);
                 return Token.initRange(.{
-                    .Number = .{
-                        .data = data.value,
-                        .isPositive = true,
-                    },
+                    .Number = data.value,
                 }, pos, pos + data.length - 1);
+            }
+
+            if (std.ascii.isAlphabetic(char)) {
+                var current = char;
+                const start = charUtil.index - 1;
+                while (std.ascii.isAlphabetic(current)) {
+                    current = try charUtil.take();
+                }
+
+                const end = charUtil.index - 1;
+                const chars = charUtil.chars[start..end];
+                return Token.initRange(.{ .Variable = chars }, start, end);
             }
 
             return TokenizeError.UnexpectedCharacter;
@@ -152,12 +155,12 @@ fn parseNextToken(charUtil: *CharUtil) TokenizeError!?Token {
 }
 
 const ParsedNumber = struct {
-    value: u64,
+    value: i64,
     length: usize,
 };
 
 fn parseNumber(charUtil: *CharUtil) !ParsedNumber {
-    var data: u64 = 0;
+    var data: i64 = 0;
     var length: usize = 0;
 
     var char = try charUtil.take();

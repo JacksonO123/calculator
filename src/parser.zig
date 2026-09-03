@@ -33,29 +33,93 @@ const ExprNode = struct {
 const NodeType = enum {
     Expr,
     Number,
+    Variable,
 };
 
 pub const Node = union(NodeType) {
     const Self = @This();
 
     Expr: ExprNode,
-    Number: tokenizer.Number,
+    Number: i64,
+    Variable: []const u8,
 
-    pub fn allocate(self: Self, allocator: Allocator) !*Self {
+    pub fn allocate(allocator: Allocator, data: Self) !*Self {
         const ptr = try allocator.create(Self);
-        ptr.* = self;
+        ptr.* = data;
         return ptr;
     }
 
     pub fn write(self: Self, writer: *Writer) !void {
         switch (self) {
             .Expr => |expr| try expr.write(writer),
-            .Number => |num| {
-                if (!num.isPositive) {
-                    try writer.writeAll("-");
-                }
+            .Number => |num| try writer.print("{d}", .{num}),
+            .Variable => |chars| try writer.print("{s}", .{chars}),
+        }
+    }
 
-                try writer.print("{d}", .{num.data});
+    pub fn simplify(self: *Self, allocator: Allocator) !*Self {
+        switch (self.*) {
+            .Number, .Variable => return self,
+            .Expr => |expr| {
+                switch (expr.op) {
+                    .Add => {
+                        const left = try expr.left.simplify(allocator);
+                        const right = try expr.right.simplify(allocator);
+
+                        if (left.* == .Number) {
+                            if (right.* == .Number) {
+                                return try Node.allocate(
+                                    allocator,
+                                    .{ .Number = left.Number + right.Number },
+                                );
+                            } else if (left.Number == 0) {
+                                return right;
+                            }
+                        } else if (right.* == .Number and right.Number == 0) {
+                            return left;
+                        }
+
+                        return try Node.allocate(allocator, .{
+                            .Expr = .{
+                                .left = left,
+                                .right = right,
+                                .op = .Add,
+                            },
+                        });
+                    },
+                    .Mult => {
+                        const left = try expr.left.simplify(allocator);
+                        const right = try expr.right.simplify(allocator);
+
+                        if (left.* == .Number) {
+                            if (right.* == .Number) {
+                                return try Node.allocate(
+                                    allocator,
+                                    .{ .Number = left.Number * right.Number },
+                                );
+                            } else if (left.Number == 0) {
+                                return try Node.allocate(allocator, .{ .Number = 0 });
+                            } else if (left.Number == 1) {
+                                return right;
+                            }
+                        } else if (right.* == .Number) {
+                            if (right.Number == 0) {
+                                return try Node.allocate(allocator, .{ .Number = 0 });
+                            } else if (right.Number == 1) {
+                                return left;
+                            }
+                        }
+
+                        return try Node.allocate(allocator, .{
+                            .Expr = .{
+                                .left = left,
+                                .right = right,
+                                .op = .Mult,
+                            },
+                        });
+                    },
+                    else => return self,
+                }
             },
         }
     }
@@ -91,10 +155,9 @@ pub fn parseImpl(allocator: Allocator, context: *Context, writer: *Writer) !*Nod
             try context.tokens.expectToken(.RParen);
             break :a tempExpr;
         },
-        .Number => |num| try (Node{
-            .Number = num,
-        }).allocate(allocator),
+        .Number => |num| try Node.allocate(allocator, .{ .Number = num }),
         .RParen, .Operator => return context.logger.logError(ParserError.UnexpectedToken, writer),
+        .Variable => |chars| try Node.allocate(allocator, .{ .Variable = chars }),
         .NewLine => unreachable,
     };
 
@@ -109,13 +172,13 @@ pub fn parseImpl(allocator: Allocator, context: *Context, writer: *Writer) !*Nod
 
     const right = try parseImpl(allocator, context, writer);
 
-    const node = try (Node{
+    const node = try Node.allocate(allocator, .{
         .Expr = .{
             .op = opTok.tokType.Operator,
             .left = expr,
             .right = right,
         },
-    }).allocate(allocator);
+    });
 
     return node;
 }
