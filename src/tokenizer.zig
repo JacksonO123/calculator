@@ -1,11 +1,9 @@
 const std = @import("std");
-const calc = @import("calc.zig");
-const utils = calc.utils;
-const ArrayList = std.ArrayList;
+const utils = @import("utils.zig");
 const Allocator = std.mem.Allocator;
-const Writer = std.fs.File.Writer;
+const Writer = std.Io.Writer;
 
-const INIT_TOK_CAPACITY = 1024 * 10;
+const INIT_TOK_CAPACITY = 1024;
 
 pub const TokenizeError = error{
     NumberHasTwoPeriods,
@@ -52,7 +50,7 @@ pub const OperatorType = enum {
     }
 
     pub fn write(self: Self, writer: *Writer) !void {
-        try writer.interface.writeAll(&[_]u8{self.toChar()});
+        try writer.writeAll(&[_]u8{self.toChar()});
     }
 };
 
@@ -93,20 +91,20 @@ pub const Token = struct {
     }
 };
 
-pub fn tokenize(allocator: Allocator, code: []const u8) ![]Token {
+pub fn tokenize(allocator: Allocator, code: []const u8, writer: *Writer) ![]Token {
     var charUtil = CharUtil.init(code);
-    var tokens = try ArrayList(Token).initCapacity(allocator, INIT_TOK_CAPACITY);
+    var tokens = try std.ArrayList(Token).initCapacity(allocator, INIT_TOK_CAPACITY);
 
     while (charUtil.hasNext()) {
         const token = parseNextToken(&charUtil) catch |e| {
-            return charUtil.logError(e);
+            return charUtil.logError(e, writer);
         };
         if (token) |t| {
             try tokens.append(allocator, t);
         }
     }
 
-    return try tokens.toOwnedSlice(allocator);
+    return tokens.items;
 }
 
 fn parseNextToken(charUtil: *CharUtil) TokenizeError!?Token {
@@ -241,8 +239,7 @@ const CharUtil = struct {
         return self.chars;
     }
 
-    pub fn logError(self: *Self, err: TokenizeError) TokenizeError {
-        const stdout = std.fs.File.stdout();
+    pub fn logError(self: *Self, err: TokenizeError, writer: *Writer) TokenizeError {
         const errStr = tokenizeErrorToString(err);
 
         const index = self.index - 1;
@@ -250,18 +247,18 @@ const CharUtil = struct {
         const charIndex = index - bounds.start;
         const line = self.chars[bounds.start..bounds.end];
 
-        stdout.writeAll("Error: ") catch {};
-        stdout.writeAll(errStr) catch {};
-        stdout.writeAll("\n") catch {};
-        stdout.writeAll(line) catch {};
-        stdout.writeAll("\n") catch {};
+        writer.writeAll("Error: ") catch {};
+        writer.writeAll(errStr) catch {};
+        writer.writeAll("\n") catch {};
+        writer.writeAll(line) catch {};
+        writer.writeAll("\n") catch {};
 
         var i: usize = 0;
         while (i < charIndex) : (i += 1) {
-            stdout.writeAll(" ") catch {};
+            writer.writeAll(" ") catch {};
         }
 
-        stdout.writeAll("^\n") catch {};
+        writer.writeAll("^\n") catch {};
 
         return err;
     }

@@ -1,60 +1,43 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const calc = @import("calc.zig");
-const tokenizer = calc.tokenizer;
-const parser = calc.parser;
-const logger = calc.logger;
-const nodePool = calc.nodePool;
-const utils = calc.utils;
+const tokenizer = @import("tokenizer.zig");
+const logMod = @import("logger.zig");
+const parser = @import("parser.zig");
+const utils = @import("utils.zig");
 const Allocator = std.mem.Allocator;
-const Logger = logger.Logger;
 const TokenUtil = tokenizer.TokenUtil;
-const Context = calc.Context;
-const NodePool = nodePool.NodePool;
+const Context = @import("context.zig").Context;
 
-pub fn main() !void {
-    const dbg = builtin.mode == .Debug;
-    var gp = std.heap.GeneralPurposeAllocator(.{ .safety = dbg }){};
-    defer _ = gp.deinit();
-    const allocator = gp.allocator();
-
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+pub fn main(init: std.process.Init) !void {
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
     if (args.len < 2) {
         return error.NoInputFile;
     }
 
     const path = args[1];
 
-    const code = try readRelativeFile(allocator, path);
-    defer allocator.free(code);
-
-    const tokens = try tokenizer.tokenize(allocator, code);
-    defer allocator.free(tokens);
-
-    var tokenUtil = TokenUtil.init(tokens);
-    var loggerUtil = Logger.init(allocator, &tokenUtil, code);
-    var nodePoolUtil = try NodePool.init(allocator);
-    defer nodePoolUtil.deinit();
-
-    var context = Context{
-        .tokens = &tokenUtil,
-        .nodePool = &nodePoolUtil,
-        .logger = &loggerUtil,
+    var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
+    var stdoutWriter = std.Io.File.stdout().writer(init.io, &buffer);
+    const writer = &stdoutWriter.interface;
+    defer stdoutWriter.end() catch {
+        std.debug.print("problem\n", .{});
     };
 
-    const tree = try parser.parse(allocator, &context);
+    const code = try readRelativeFile(init.arena.allocator(), init.io, path);
+    const tokens = try tokenizer.tokenize(init.arena.allocator(), code, writer);
 
-    var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
-    var writer = std.fs.File.stdout().writer(&buffer);
-    defer writer.end() catch {};
+    var tokenUtil = TokenUtil.init(tokens);
+    var loggerUtil = logMod.Logger.init(&tokenUtil, code);
 
-    try tree.write(&writer);
-    try writer.interface.writeAll("\n");
+    var context = Context.init(&tokenUtil, &loggerUtil);
+
+    const tree = try parser.parse(init.arena.allocator(), &context, writer);
+
+    try tree.write(writer);
+    try writer.writeAll("\n");
+    try writer.flush();
 }
 
-fn readRelativeFile(allocator: Allocator, path: []const u8) ![]const u8 {
-    const file = try std.fs.cwd().openFile(path, .{});
-    defer file.close();
-    return try file.readToEndAlloc(allocator, std.math.maxInt(usize));
+fn readRelativeFile(allocator: Allocator, io: std.Io, path: []const u8) ![]const u8 {
+    return try std.Io.Dir.readFileAlloc(std.Io.Dir.cwd(), io, path, allocator, .unlimited);
 }

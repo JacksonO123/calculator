@@ -1,8 +1,6 @@
 const std = @import("std");
-const calc = @import("calc.zig");
-const utils = calc.utils;
+const utils = @import("utils.zig");
 const Allocator = std.mem.Allocator;
-const ArrayList = std.ArrayList;
 
 pub const BUFFERED_WRITER_SIZE = 1024 * 32;
 

@@ -1,11 +1,9 @@
 const std = @import("std");
-const calc = @import("calc.zig");
-const logger = calc.logger;
-const tokenizer = calc.tokenizer;
-const utils = calc.utils;
+const logger = @import("logger.zig");
+const tokenizer = @import("tokenizer.zig");
+const utils = @import("utils.zig");
 const TokenUtil = tokenizer.TokenUtil;
-const File = std.fs.File;
-const Allocator = std.mem.Allocator;
+const Writer = std.Io.Writer;
 
 const LineBounds = struct {
     start: usize,
@@ -20,24 +18,17 @@ const SurroundingBounds = struct {
 pub const Logger = struct {
     const Self = @This();
 
-    allocator: Allocator,
     tokens: *TokenUtil,
     code: []const u8,
 
-    pub fn init(allocator: Allocator, tokens: *TokenUtil, code: []const u8) Self {
+    pub fn init(tokens: *TokenUtil, code: []const u8) Self {
         return Self{
-            .allocator = allocator,
             .tokens = tokens,
             .code = code,
         };
     }
 
-    pub fn logError(self: *Self, err: anyerror) anyerror {
-        var buffer: [utils.BUFFERED_WRITER_SIZE]u8 = undefined;
-        var writer = std.fs.File.stdout().writer(&buffer);
-        defer writer.end() catch {};
-        var interface = writer.interface;
-
+    pub fn logError(self: *Self, err: anyerror, writer: *Writer) anyerror {
         const errStr = @errorName(err);
         const numSurroundingLines = 1;
         const contextBlock = findSurroundingLines(
@@ -56,27 +47,27 @@ pub const Logger = struct {
             self.code,
         );
 
-        try interface.writeAll("Error: ");
-        try interface.writeAll(errStr);
-        try interface.writeByte('\n');
+        try writer.writeAll("Error: ");
+        try writer.writeAll(errStr);
+        try writer.writeByte('\n');
 
         if (beforeLines.len > 0) {
-            try interface.writeAll(beforeLines);
-            try interface.writeByte('\n');
+            try writer.writeAll(beforeLines);
+            try writer.writeByte('\n');
         }
 
-        try interface.writeAll(line);
-        try interface.writeByte('\n');
+        try writer.writeAll(line);
+        try writer.writeByte('\n');
 
         var i: usize = 0;
         while (i < startOffset) : (i += 1) {
-            try interface.writeByte(' ');
+            try writer.writeByte(' ');
         }
-        try interface.writeAll(&[_]u8{ '^', '\n' });
+        try writer.writeAll(&[_]u8{ '^', '\n' });
 
         if (afterLines.len > 0) {
-            try interface.writeAll(afterLines);
-            try interface.writeByte('\n');
+            try writer.writeAll(afterLines);
+            try writer.writeByte('\n');
         }
 
         return err;
