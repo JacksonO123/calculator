@@ -10,6 +10,7 @@ const utils = @import("utils.zig");
 
 const ParserError = error{
     UnexpectedToken,
+    DivideByZero,
 };
 
 const ExprNode = struct {
@@ -118,7 +119,84 @@ pub const Node = union(NodeType) {
                             },
                         });
                     },
-                    else => return self,
+                    .Sub => {
+                        const left = try expr.left.simplify(allocator);
+                        const right = try expr.right.simplify(allocator);
+
+                        if (left.* == .Number and right.* == .Number) {
+                            return try Node.allocate(
+                                allocator,
+                                .{ .Number = left.Number - right.Number },
+                            );
+                        } else if (right.* == .Number and right.Number == 0) {
+                            return left;
+                        }
+
+                        return try Node.allocate(allocator, .{
+                            .Expr = .{
+                                .left = left,
+                                .right = right,
+                                .op = .Sub,
+                            },
+                        });
+                    },
+                    .Div => {
+                        const left = try expr.left.simplify(allocator);
+                        const right = try expr.right.simplify(allocator);
+
+                        if (left.* == .Number and right.* == .Number) {
+                            if (right.Number == 0) {
+                                return ParserError.DivideByZero;
+                            }
+                            if (@mod(left.Number, right.Number) == 0) {
+                                return try Node.allocate(
+                                    allocator,
+                                    .{ .Number = @divTrunc(left.Number, right.Number) },
+                                );
+                            }
+                            const g = std.math.gcd(@abs(left.Number), @abs(right.Number));
+                            if (g > 1) {
+                                return try Node.allocate(allocator, .{
+                                    .Expr = .{
+                                        .left = try Node.allocate(
+                                            allocator,
+                                            .{ .Number = @divTrunc(left.Number, @as(i64, @intCast(g))) },
+                                        ),
+                                        .right = try Node.allocate(
+                                            allocator,
+                                            .{ .Number = @divTrunc(right.Number, @as(i64, @intCast(g))) },
+                                        ),
+                                        .op = .Div,
+                                    },
+                                });
+                            }
+                            return try Node.allocate(allocator, .{
+                                .Expr = .{
+                                    .left = left,
+                                    .right = right,
+                                    .op = .Div,
+                                },
+                            });
+                        } else if (left.* == .Number) {
+                            if (left.Number == 0) {
+                                return try Node.allocate(allocator, .{ .Number = 0 });
+                            } else if (left.Number == 1) {
+                                return right;
+                            }
+                        } else if (right.* == .Number) {
+                            if (right.Number == 1) {
+                                return left;
+                            }
+                        }
+
+                        return try Node.allocate(allocator, .{
+                            .Expr = .{
+                                .left = left,
+                                .right = right,
+                                .op = .Div,
+                            },
+                        });
+                    },
                 }
             },
         }
